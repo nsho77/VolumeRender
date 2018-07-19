@@ -1,6 +1,6 @@
 #pragma once
 #include "Volume.h"
-
+#include <math.h>
 struct float3
 {
 	float x;
@@ -15,6 +15,40 @@ struct float3
 	{
 		x = _x; y = _y; z = _z;
 	};
+
+	float3 operator- (float3 s2)
+	{
+		float3 res = float3();
+		res.x = x - s2.x;
+		res.y = y - s2.y;
+		res.z = z - s2.z;
+		return res;
+	}
+
+	float3 operator+ (float3 s2)
+	{
+		float3 res = float3();
+		res.x = x + s2.x;
+		res.y = y + s2.y;
+		res.z = z + s2.z;
+		return res;
+	}
+
+	float3 operator* (int i)
+	{
+		float3 res = float3();
+		res.x = x * i;
+		res.y = y * i;
+		res.z = z * i;
+		return res;
+	}
+
+	void normalize()
+	{
+		float dist = sqrt(x*x + y * y + z * z);
+		if (dist > 0)
+			x = x / dist; y = y / dist; z = z / dist;
+	}
 };
 
 class Renderer
@@ -46,5 +80,6 @@ public:
 	const int img_width, const int img_height);
 	bool RenderMIPAnyDirection(unsigned char* image,
 		const int img_width, const int img_height);
+	float3 cross(float3 vec1, float3 vec2);
 };
 

@@ -23,10 +23,10 @@ Renderer::~Renderer()
 bool Renderer::RenderSliceXDirection(unsigned char* image, 
 	const int img_width, const int img_height, const int depth)
 {
-	int vol_width = m_pVolume->GetHeight();
+	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
 
-	for (int i = 0; i < vol_width; i++)
+	for (int i = 0; i < vol_height; i++)
 	{
 		for (int j = 0; j < vol_depth; j++)
 		{
@@ -91,7 +91,7 @@ bool Renderer::RenderMIPXDirection(unsigned char* image,
 			for (int k = 0; k < vol_width; k++)
 				max_value = __max(max_value, m_pVolume->GetVoxel(k, i, j));
 			
-			image[img_height * j + i] = max_value;
+			image[img_width * j + i] = max_value;
 		}
 	}
 
@@ -113,7 +113,7 @@ bool Renderer::RenderMIPYDirection(unsigned char* image,
 			for (int k = 0; k < vol_height; k++)
 				max_value = __max(max_value, m_pVolume->GetVoxel(i, k, j));
 
-			image[img_height * j + i] = max_value;
+			image[img_width * j + i] = max_value;
 		}
 	}
 
@@ -135,7 +135,7 @@ bool Renderer::RenderMIPZDirection(unsigned char* image,
 			for (int k = 0; k < vol_depth; k++)
 				max_value = __max(max_value, m_pVolume->GetVoxel(i, j, k));
 
-			image[img_height * j + i] = max_value;
+			image[img_width * j + i] = max_value;
 		}
 	}
 
@@ -151,18 +151,25 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 
 	///눈좌표, 업벡터, 볼륨 센터 설정
 	float3 eye_coord = float3(100.f, 200.f, 300.f);
-	float3 up_vector = float3(0.f, 0.f, 1.f);
+	float3 up_vector = float3(0.f, 0.f, -1.f);
 	float3 center_coord = { vol_width / 2.f, vol_height / 2.f, vol_depth / 2.f };
 
 	/// 뷰벡터 계산
+	/// 연산자 오버로딩이 필요하다
 	float3 view_vector = center_coord - eye_coord;
+	printf("view_vector :%f %f %f\n",view_vector.x, view_vector.y, view_vector.z);
+	/// 구조체 안에 함수를 정의한다.
 	view_vector.normalize();
+	printf("view_vector :%f %f %f\n", view_vector.x, view_vector.y, view_vector.z);
 
-	/// x벡터 계산
+//
+//	/// x벡터 계산
 	float3 x_vector = cross(view_vector, up_vector);
+	printf("x_vector :%f %f %f\n", x_vector.x, x_vector.y, x_vector.z);
 	x_vector.normalize();
-
-	///y벡터 계산
+	printf("x_vector :%f %f %f\n", x_vector.x, x_vector.y, x_vector.z);
+//
+//	///y벡터 계산
 	float3 y_vector = cross(view_vector, x_vector);
 	y_vector.normalize();
 
@@ -191,7 +198,7 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 				}
 
 				///뷰벡터 방향으로 한칸 전진 (view_vector는 normalize를 했으므로, 1 만큼 전진함)
-				cur_coord += view_vector;
+				cur_coord = cur_coord + view_vector;
 			}
 
 			///마지막 값 이미지에 대입
@@ -200,4 +207,14 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	}
 
 	return true;
+}
+
+float3 Renderer::cross(float3 vec1, float3 vec2)
+{
+	float res_x = vec1.y*vec2.z - vec1.z*vec2.y;
+	float res_y = vec1.z*vec2.x - vec1.x*vec2.z;
+	float res_z = vec1.x*vec2.y - vec1.y*vec2.x;
+
+	float3 res = float3(res_x, res_y, res_z);
+	return res;
 }
