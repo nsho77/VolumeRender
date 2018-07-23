@@ -17,6 +17,7 @@ public:
 
 public:
 	unsigned char GetVoxel(int x, int y, int z);
+	float GetVoxel(float x, float y, float z);
 	int GetWidth(void);
 	int GetHeight(void);
 	int GetDepth(void);

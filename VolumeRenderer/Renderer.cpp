@@ -185,12 +185,12 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 			for (float k = 0.f; k < 1000.f; k += 1.f)
 			{
 				///진행 픽셀의 현재 위치가 볼륨 바운더리 안에 들어왔다면 
-				if (cur_coord.x >= 0.f && cur_coord.x < vol_width &&
-					cur_coord.y >= 0.f && cur_coord.y < vol_height &&
-					cur_coord.z >= 0.f && cur_coord.z < vol_depth)
+				if (cur_coord.x >= 0.f && cur_coord.x < vol_width-1 &&
+					cur_coord.y >= 0.f && cur_coord.y < vol_height-1 &&
+					cur_coord.z >= 0.f && cur_coord.z < vol_depth-1)
 				{
 					///해당 위치에서의 볼륨 복셀을 가져옴
-					unsigned char voxel = 
+					float voxel = 
 						m_pVolume->GetVoxel(cur_coord.x, cur_coord.y, cur_coord.z);
 
 					///맥스값 비교
