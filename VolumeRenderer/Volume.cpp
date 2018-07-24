@@ -33,13 +33,13 @@ unsigned char Volume::GetVoxel(int x, int y, int z)
 float Volume::GetVoxel(float x, float y, float z)
 {
 	// tri - linear interpolation
-	int x_minus = x;
-	int y_minus = y;
-	int z_minus = z;
+	int x_minus = static_cast<int>(x);
+	int y_minus = static_cast<int>(y);
+	int z_minus = static_cast<int>(z);
 
-	int x_plus = x + 1;
-	int y_plus = y + 1;
-	int z_plus = z + 1;
+	int x_plus = static_cast<int>(x + 1);
+	int y_plus = static_cast<int>(y + 1);
+	int z_plus = static_cast<int>(z + 1);
 
 	float x_weight =  x - static_cast<float>(x_minus);
 	float y_weight =  y - static_cast<float>(y_minus);

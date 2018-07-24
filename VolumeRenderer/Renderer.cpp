@@ -142,6 +142,60 @@ bool Renderer::RenderMIPZDirection(unsigned char* image,
 	return true;
 }
 
+
+void Renderer::GetRayBound(float t[2], float3 start_coord, float3 view_vector)
+{
+	const float EPS = 0.00001f;
+	/// 1 2를 구한다.
+	float kx[2] = { -20000, 20000 }, ky[2] = { -20000, 20000 }, kz[2] = { -20000, 20000 };
+
+	if (fabs((float)view_vector.x) > EPS)
+	{
+		kx[0] = (0.f - start_coord.x) / view_vector.x;
+		kx[1] = (m_pVolume->GetWidth() - start_coord.x) / view_vector.x;
+		if (kx[0] > kx[1])
+		{
+			/// in > out
+			float temp = kx[0];
+			kx[0] = kx[1];
+			kx[1] = temp;
+		}
+	}
+
+	if (fabs((float)view_vector.y) > EPS)
+	{
+		ky[0] = (0.f - start_coord.y) / view_vector.y;
+		ky[1] = (m_pVolume->GetHeight() - start_coord.y) / view_vector.y;
+		if (ky[0] > ky[1])
+		{
+			/// in > out
+			float temp = ky[0];
+			ky[0] = ky[1];
+			ky[1] = temp;
+		}
+	}
+
+	if (fabs((float)view_vector.z) > EPS)
+	{
+		kz[0] = (0.f - start_coord.z) / view_vector.z;
+		kz[1] = (m_pVolume->GetDepth() - start_coord.z) / view_vector.z;
+		if (kz[0] > kz[1])
+		{
+			/// in > out
+			float temp = kz[0];
+			kz[0] = kz[1];
+			kz[1] = temp;
+		}
+	}
+
+	t[0] = __max(__max(kx[0], ky[0]), kz[0]);
+	t[1] = __min(__min(kx[1], ky[1]), kz[1]);
+
+	t[0] = t[0] + 0.01f;
+	t[1] = t[1] - 0.01f;
+
+}
+
 bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	const int img_width, const int img_height)
 {
@@ -157,17 +211,17 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	/// 뷰벡터 계산
 	/// 연산자 오버로딩이 필요하다
 	float3 view_vector = center_coord - eye_coord;
-	printf("view_vector :%f %f %f\n",view_vector.x, view_vector.y, view_vector.z);
+	//printf("view_vector :%f %f %f\n",view_vector.x, view_vector.y, view_vector.z);
 	/// 구조체 안에 함수를 정의한다.
 	view_vector.normalize();
-	printf("view_vector :%f %f %f\n", view_vector.x, view_vector.y, view_vector.z);
+	//printf("view_vector :%f %f %f\n", view_vector.x, view_vector.y, view_vector.z);
 
 //
 //	/// x벡터 계산
 	float3 x_vector = cross(view_vector, up_vector);
-	printf("x_vector :%f %f %f\n", x_vector.x, x_vector.y, x_vector.z);
+	//printf("x_vector :%f %f %f\n", x_vector.x, x_vector.y, x_vector.z);
 	x_vector.normalize();
-	printf("x_vector :%f %f %f\n", x_vector.x, x_vector.y, x_vector.z);
+	//printf("x_vector :%f %f %f\n", x_vector.x, x_vector.y, x_vector.z);
 //
 //	///y벡터 계산
 	float3 y_vector = cross(view_vector, x_vector);
@@ -181,28 +235,33 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 			float3 cur_coord = eye_coord + 
 				x_vector * (i-img_width/2) + y_vector * (j-img_height/2);
 
+			float t[2] = { 0.f, 0.f };
+			GetRayBound(t, cur_coord, view_vector);
+
 			unsigned char max_value = 0;
-			for (float k = 0.f; k < 1000.f; k += 1.f)
+			for (float k = t[0]; k < t[1]; k += 1.f)
 			{
+				float3 adv_coord = cur_coord + view_vector * k;
+
 				///진행 픽셀의 현재 위치가 볼륨 바운더리 안에 들어왔다면 
-				if (cur_coord.x >= 0.f && cur_coord.x < vol_width-1 &&
-					cur_coord.y >= 0.f && cur_coord.y < vol_height-1 &&
-					cur_coord.z >= 0.f && cur_coord.z < vol_depth-1)
+				if (adv_coord.x >= 0.f && adv_coord.x < vol_width-1 &&
+					adv_coord.y >= 0.f && adv_coord.y < vol_height-1 &&
+					adv_coord.z >= 0.f && adv_coord.z < vol_depth-1)
 				{
 					///해당 위치에서의 볼륨 복셀을 가져옴
 					float voxel = 
-						m_pVolume->GetVoxel(cur_coord.x, cur_coord.y, cur_coord.z);
+						m_pVolume->GetVoxel(adv_coord.x, adv_coord.y, adv_coord.z);
 
 					///맥스값 비교
 					max_value = __max(max_value, voxel);
 				}
 
 				///뷰벡터 방향으로 한칸 전진 (view_vector는 normalize를 했으므로, 1 만큼 전진함)
-				cur_coord = cur_coord + view_vector;
+				//cur_coord = cur_coord + view_vector;
 			}
 
 			///마지막 값 이미지에 대입
-			image[img_height * j + i] = max_value;
+			image[img_height * j + i] = static_cast<unsigned char>(max_value);
 		}
 	}
 
