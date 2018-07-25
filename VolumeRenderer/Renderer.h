@@ -79,7 +79,8 @@ public:
 	bool RenderMIPZDirection(unsigned char* image,
 	const int img_width, const int img_height);
 	bool RenderMIPAnyDirection(unsigned char* image,
-		const int img_width, const int img_height);
+		const int img_width, const int img_height,
+		double angle, int leftOrRight);
 	float3 cross(float3 vec1, float3 vec2);
 	void GetRayBound(float t[2], float3 start_coord, float3 view_vector);
 };

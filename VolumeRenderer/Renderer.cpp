@@ -197,16 +197,53 @@ void Renderer::GetRayBound(float t[2], float3 start_coord, float3 view_vector)
 }
 
 bool Renderer::RenderMIPAnyDirection(unsigned char* image,
-	const int img_width, const int img_height)
+	const int img_width, const int img_height, 
+	double angle, int leftOrRight)
 {
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
 
 	///눈좌표, 업벡터, 볼륨 센터 설정
-	float3 eye_coord = float3(100.f, 200.f, 300.f);
+	float3 eye_coord = float3(255.f / 2.f, 255.f, 224.f/2.f);
 	float3 up_vector = float3(0.f, 0.f, -1.f);
 	float3 center_coord = { vol_width / 2.f, vol_height / 2.f, vol_depth / 2.f };
+
+	/// 눈좌표 rotate
+	angle = angle * 3.141592 / 180;
+	if (leftOrRight < 0) angle *= (-1.f);
+	double rotate_matrix[3][3] = {
+		{cos(angle), -sin(angle), 0.f },
+		{sin(angle), cos(angle) , 0.f },
+		{0.f,0.f,1.f}
+	};
+	/*double rotate_matrix[3][3] = {
+		{ cos(angle)+ (1.f- cos(angle))*center_coord.x*center_coord.x, 
+		(-1)*center_coord.z*sin(angle)+(1.f-cos(angle))*center_coord.x*center_coord.y, 
+		center_coord.y*sin(angle)+(1.f-cos(angle))*center_coord.x*center_coord.z },
+
+		{ center_coord.z*sin(angle)+(1.f - cos(angle))*center_coord.x*center_coord.y,
+		cos(angle)+(1.f - cos(angle))*center_coord.y*center_coord.y ,
+		(-1)*center_coord.x*sin(angle) + (1.f - cos(angle))*center_coord.y*center_coord.z },
+
+		{ (-1)*center_coord.y*sin(angle) + (1.f - cos(angle))*center_coord.x*center_coord.z ,
+		center_coord.x*sin(angle) + (1.f - cos(angle))*center_coord.y*center_coord.z,
+		cos(angle) + (1.f - cos(angle))*center_coord.z*center_coord.z }
+	};*/
+	
+	float rotate_eye[3] = { eye_coord.x, eye_coord.y, eye_coord.z };
+	for (int i = 0; i < 3; i++)
+	{
+		float res = 0.f;
+		for (int j = 0; j < 3; j++)
+		{
+			res = res + rotate_eye[j] * static_cast<float>(rotate_matrix[i][j]);
+		}
+		rotate_eye[i] = res;
+	}
+
+	eye_coord.x = rotate_eye[0]; eye_coord.y = rotate_eye[1]; eye_coord.z = rotate_eye[2];
+
 
 	/// 뷰벡터 계산
 	/// 연산자 오버로딩이 필요하다
