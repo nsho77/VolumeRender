@@ -198,7 +198,7 @@ void Renderer::GetRayBound(float t[2], float3 start_coord, float3 view_vector)
 
 bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	const int img_width, const int img_height, 
-	double angle, int leftOrRight)
+	float angle)
 {
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
@@ -210,39 +210,48 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	float3 center_coord = { vol_width / 2.f, vol_height / 2.f, vol_depth / 2.f };
 
 	/// ´«ÁÂÇ¥ rotate
-	angle = angle * 3.141592 / 180;
-	if (leftOrRight < 0) angle *= (-1.f);
-	double rotate_matrix[3][3] = {
-		{cos(angle), -sin(angle), 0.f },
-		{sin(angle), cos(angle) , 0.f },
+	angle = angle * 3.141592f / 180.f;
+	float cos_ = cosf(angle);
+	float sin_ = sinf(angle);
+	float x2 = center_coord.x * center_coord.x;
+	float y2 = center_coord.y * center_coord.y;
+	float z2 = center_coord.z * center_coord.z;
+	float oneMinusCos = 1.f - cos_;
+
+	/*float rotate_matrix[3][3] = { 0 };
+	rotate_matrix[0][0] = (oneMinusCos * x2) + cos_;
+	rotate_matrix[0][1] = (oneMinusCos * center_coord.x * center_coord.y) - (center_coord.z * sin_);
+	rotate_matrix[0][2] = (oneMinusCos * center_coord.y * center_coord.z) + (center_coord.y * sin_);
+
+	rotate_matrix[1][0] = (oneMinusCos * center_coord.x * center_coord.y) + (center_coord.z * sin_);
+	rotate_matrix[1][1] = (oneMinusCos * y2) + cos_;
+	rotate_matrix[1][2] = (oneMinusCos * center_coord.y * center_coord.z) - (center_coord.x * sin_);
+
+	rotate_matrix[2][0] = (oneMinusCos * center_coord.x * center_coord.z) - (center_coord.y * sin_);
+	rotate_matrix[2][1] = (oneMinusCos * center_coord.y * center_coord.z) + (center_coord.x * sin_);
+	rotate_matrix[2][2] = (oneMinusCos * z2) + cos_;*/
+
+
+	float rotate_matrix[3][3] = {
+		{cos_, (-1)*sin_, 0.f },
+		{sin_, cos_ , 0.f },
 		{0.f,0.f,1.f}
 	};
-	/*double rotate_matrix[3][3] = {
-		{ cos(angle)+ (1.f- cos(angle))*center_coord.x*center_coord.x, 
-		(-1)*center_coord.z*sin(angle)+(1.f-cos(angle))*center_coord.x*center_coord.y, 
-		center_coord.y*sin(angle)+(1.f-cos(angle))*center_coord.x*center_coord.z },
-
-		{ center_coord.z*sin(angle)+(1.f - cos(angle))*center_coord.x*center_coord.y,
-		cos(angle)+(1.f - cos(angle))*center_coord.y*center_coord.y ,
-		(-1)*center_coord.x*sin(angle) + (1.f - cos(angle))*center_coord.y*center_coord.z },
-
-		{ (-1)*center_coord.y*sin(angle) + (1.f - cos(angle))*center_coord.x*center_coord.z ,
-		center_coord.x*sin(angle) + (1.f - cos(angle))*center_coord.y*center_coord.z,
-		cos(angle) + (1.f - cos(angle))*center_coord.z*center_coord.z }
-	};*/
+	
 	
 	float rotate_eye[3] = { eye_coord.x, eye_coord.y, eye_coord.z };
+	float res_arr[3] = { 0.f };
 	for (int i = 0; i < 3; i++)
 	{
 		float res = 0.f;
 		for (int j = 0; j < 3; j++)
 		{
-			res = res + rotate_eye[j] * static_cast<float>(rotate_matrix[i][j]);
+			res = res + rotate_eye[j] * rotate_matrix[i][j];
 		}
-		rotate_eye[i] = res;
+		res_arr[i] = res;
 	}
 
-	eye_coord.x = rotate_eye[0]; eye_coord.y = rotate_eye[1]; eye_coord.z = rotate_eye[2];
+	eye_coord.x = res_arr[0]; eye_coord.y = res_arr[1]; eye_coord.z = res_arr[2];
 
 
 	/// ºäº¤ÅÍ °è»ê
