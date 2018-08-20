@@ -1,6 +1,9 @@
 #pragma once
 #include "Volume.h"
 #include <math.h>
+#include "GlobalDefine.h"
+#include "TransferFuncion.h"
+
 struct float3
 {
 	float x;
@@ -47,21 +50,40 @@ struct float3
 	{
 		float dist = sqrt(x*x + y * y + z * z);
 		if (dist > 0)
-			x = x / dist; y = y / dist; z = z / dist;
+		{
+			x = x / dist; 
+			y = y / dist; 
+			z = z / dist;
+		}
+		else
+		{
+			x = 0.f;
+			y = 0.f;
+			z = 0.f;
+		}
+			
 	}
 };
-
+enum {
+	SLICE, MIP, VR
+};
 class Renderer
 {
 private:
-	shared_ptr<Volume> m_pVolume;
+	shared_ptr<Volume>			m_pVolume;
+	shared_ptr<TransferFuncion> m_pTF;
+	float3						m_eye_coord;
+	int							m_CurMode;
 
 public:
 	Renderer();
 	Renderer(unsigned char* volume, int width, int height, int depth);
 	~Renderer();
+	int GetCurMode();
+	void SetCurMode(int CurMode);
 
 public:
+	float3 cross(float3 vec1, float3 vec2);
 	bool RenderSliceXDirection(unsigned char* image, 
 		const int img_width, const int img_height,
 		const int depth);
@@ -80,8 +102,16 @@ public:
 	const int img_width, const int img_height);
 	bool RenderMIPAnyDirection(unsigned char* image,
 		const int img_width, const int img_height,
-		float angle);
-	float3 cross(float3 vec1, float3 vec2);
+		int DirKey);
 	void GetRayBound(float t[2], float3 start_coord, float3 view_vector);
+
+	bool RenderVRXDirection(unsigned char* image,
+		const int img_width, const int img_height);
+	bool RenderVRYDirection(unsigned char* image,
+		const int img_width, const int img_height);
+	bool RenderVRZDirection(unsigned char* image,
+		const int img_width, const int img_height);
+	bool RenderVRAnyDirection(unsigned char* image,
+		const int img_width, const int img_height, int DirKey);
 };
 

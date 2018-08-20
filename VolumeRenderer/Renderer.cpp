@@ -5,6 +5,9 @@
 Renderer::Renderer()
 {
 	m_pVolume = nullptr;
+	m_pTF = nullptr;
+	m_eye_coord = { 255.f, 225.f / 2.f, 224.f / 2.f };
+	m_CurMode = -1;
 }
 
 
@@ -12,6 +15,15 @@ Renderer::Renderer(unsigned char* volume, int width, int height, int depth)
 {
 	m_pVolume = shared_ptr<Volume>(new Volume(volume, width, height, depth));
 
+	int start_color[3] = {100, 100, 100};
+	int end_color[3] = { 120, 120, 120};
+	int alpha[2] = { 100, 120 };
+
+	m_pTF = shared_ptr<TransferFuncion>(
+		new TransferFuncion(start_color, end_color,alpha[0], alpha[1]));
+
+	m_eye_coord = { 255.f, 225.f / 2.f, 224.f / 2.f };
+	m_CurMode = -1;
 }
 
 
@@ -20,9 +32,20 @@ Renderer::~Renderer()
 }
 
 
+int Renderer::GetCurMode()
+{
+	return m_CurMode;
+}
+
+void Renderer::SetCurMode(int CurMode)
+{
+	m_CurMode = CurMode;
+}
+
 bool Renderer::RenderSliceXDirection(unsigned char* image, 
 	const int img_width, const int img_height, const int depth)
 {
+	if (m_CurMode != SLICE) return false;
 	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
 
@@ -42,10 +65,11 @@ bool Renderer::RenderSliceXDirection(unsigned char* image,
 bool Renderer::RenderSliceYDirection(unsigned char* image,
 	const int img_width, const int img_height, const int depth)
 {
-	int vol_height = m_pVolume->GetHeight();
+	if (m_CurMode != SLICE) return false;
+	int vol_width = m_pVolume->GetWidth();
 	int vol_depth = m_pVolume->GetDepth();
 
-	for (int i = 0; i < vol_height; i++)
+	for (int i = 0; i < vol_width; i++)
 	{
 		for (int j = 0; j < vol_depth; j++)
 		{
@@ -60,6 +84,7 @@ bool Renderer::RenderSliceYDirection(unsigned char* image,
 bool Renderer::RenderSliceZDirection(unsigned char* image,
 	const int img_width, const int img_height, const int depth)
 {
+	if (m_CurMode != SLICE) return false;
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
 
@@ -79,6 +104,7 @@ bool Renderer::RenderSliceZDirection(unsigned char* image,
 bool Renderer::RenderMIPXDirection(unsigned char* image,
 	const int img_width, const int img_height)
 {
+	if (m_CurMode != MIP) return false;
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
@@ -101,6 +127,7 @@ bool Renderer::RenderMIPXDirection(unsigned char* image,
 bool Renderer::RenderMIPYDirection(unsigned char* image,
 	const int img_width, const int img_height)
 {
+	if (m_CurMode != MIP) return false;
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
@@ -123,6 +150,7 @@ bool Renderer::RenderMIPYDirection(unsigned char* image,
 bool Renderer::RenderMIPZDirection(unsigned char* image,
 	const int img_width, const int img_height)
 {
+	if (m_CurMode != MIP) return false;
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
@@ -198,18 +226,33 @@ void Renderer::GetRayBound(float t[2], float3 start_coord, float3 view_vector)
 
 bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	const int img_width, const int img_height, 
-	float angle)
+	int DirKey)
 {
+	if (m_CurMode != MIP) return false;
 	int vol_width = m_pVolume->GetWidth();
 	int vol_height = m_pVolume->GetHeight();
 	int vol_depth = m_pVolume->GetDepth();
 
+
 	///´«ÁÂÇ¥, ¾÷º¤ÅÍ, º¼·ý ¼¾ÅÍ ¼³Á¤
-	float3 eye_coord = float3(255.f / 2.f, 255.f, 224.f/2.f);
+
 	float3 up_vector = float3(0.f, 0.f, -1.f);
 	float3 center_coord = { vol_width / 2.f, vol_height / 2.f, vol_depth / 2.f };
 
 	/// ´«ÁÂÇ¥ rotate
+	float angle = 0.f;
+	switch (DirKey)
+	{
+	case LEFT:
+		angle = +20.f;
+		break;
+	case RIGHT:
+		angle = -20.f;
+		break;
+	default:
+		break;
+	}
+
 	angle = angle * 3.141592f / 180.f;
 	float cos_ = cosf(angle);
 	float sin_ = sinf(angle);
@@ -217,19 +260,6 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	float y2 = center_coord.y * center_coord.y;
 	float z2 = center_coord.z * center_coord.z;
 	float oneMinusCos = 1.f - cos_;
-
-	/*float rotate_matrix[3][3] = { 0 };
-	rotate_matrix[0][0] = (oneMinusCos * x2) + cos_;
-	rotate_matrix[0][1] = (oneMinusCos * center_coord.x * center_coord.y) - (center_coord.z * sin_);
-	rotate_matrix[0][2] = (oneMinusCos * center_coord.y * center_coord.z) + (center_coord.y * sin_);
-
-	rotate_matrix[1][0] = (oneMinusCos * center_coord.x * center_coord.y) + (center_coord.z * sin_);
-	rotate_matrix[1][1] = (oneMinusCos * y2) + cos_;
-	rotate_matrix[1][2] = (oneMinusCos * center_coord.y * center_coord.z) - (center_coord.x * sin_);
-
-	rotate_matrix[2][0] = (oneMinusCos * center_coord.x * center_coord.z) - (center_coord.y * sin_);
-	rotate_matrix[2][1] = (oneMinusCos * center_coord.y * center_coord.z) + (center_coord.x * sin_);
-	rotate_matrix[2][2] = (oneMinusCos * z2) + cos_;*/
 
 
 	float rotate_matrix[3][3] = {
@@ -239,7 +269,10 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 	};
 	
 	
-	float rotate_eye[3] = { eye_coord.x, eye_coord.y, eye_coord.z };
+	float rotate_eye[3] = { m_eye_coord.x, m_eye_coord.y, m_eye_coord.z };
+	rotate_eye[0] -= center_coord.x;
+	rotate_eye[1] -= center_coord.y;
+	rotate_eye[2] -= center_coord.z;
 	float res_arr[3] = { 0.f };
 	for (int i = 0; i < 3; i++)
 	{
@@ -251,12 +284,16 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 		res_arr[i] = res;
 	}
 
-	eye_coord.x = res_arr[0]; eye_coord.y = res_arr[1]; eye_coord.z = res_arr[2];
+	res_arr[0] += center_coord.x;
+	res_arr[1] += center_coord.y;
+	res_arr[2] += center_coord.z;
+
+	m_eye_coord.x = res_arr[0]; m_eye_coord.y = res_arr[1]; m_eye_coord.z = res_arr[2];
 
 
 	/// ºäº¤ÅÍ °è»ê
 	/// ¿¬»êÀÚ ¿À¹ö·ÎµùÀÌ ÇÊ¿äÇÏ´Ù
-	float3 view_vector = center_coord - eye_coord;
+	float3 view_vector = center_coord - m_eye_coord;
 	//printf("view_vector :%f %f %f\n",view_vector.x, view_vector.y, view_vector.z);
 	/// ±¸Á¶Ã¼ ¾È¿¡ ÇÔ¼ö¸¦ Á¤ÀÇÇÑ´Ù.
 	view_vector.normalize();
@@ -278,7 +315,7 @@ bool Renderer::RenderMIPAnyDirection(unsigned char* image,
 		for (int j = 0; j < img_height; j++)
 		{
 			///½ÃÀÛ ÇÈ¼¿ÀÇ 3Â÷¿ø ÁÂÇ¥ °è»ê
-			float3 cur_coord = eye_coord + 
+			float3 cur_coord = m_eye_coord +
 				x_vector * (i-img_width/2) + y_vector * (j-img_height/2);
 
 			float t[2] = { 0.f, 0.f };
@@ -322,4 +359,215 @@ float3 Renderer::cross(float3 vec1, float3 vec2)
 
 	float3 res = float3(res_x, res_y, res_z);
 	return res;
+}
+
+bool Renderer::RenderVRXDirection(unsigned char* image,
+	const int img_width, const int img_height)
+{
+	if (m_CurMode != VR) return false;
+
+	int vol_width = m_pVolume->GetWidth();
+	int vol_height = m_pVolume->GetHeight();
+	int vol_depth = m_pVolume->GetDepth();
+
+	for (int j = 0; j < vol_depth; j++)
+	{
+		for (int i = 0; i < vol_height; i++)
+		{
+			float color[3] = { 0.f };
+			float alpha = 0.f;
+			
+			for (int k = 0; k < vol_width; k++)
+			{
+				int cur_intensity = m_pVolume->GetVoxel(k, i, j);
+				float cur_blue = m_pTF->GetPalleteCValue(0, cur_intensity);
+				float cur_green = m_pTF->GetPalleteCValue(1, cur_intensity);
+				float cur_red = m_pTF->GetPalleteCValue(2, cur_intensity);
+				float cur_alpha = m_pTF->GetPalleteAValue(cur_intensity);
+
+				color[0] += (1.f - alpha) * cur_blue * cur_alpha;
+				color[1] += (1.f - alpha) * cur_green * cur_alpha;
+				color[2] += (1.f - alpha) * cur_red * cur_alpha;
+
+				alpha += (1.f - alpha) * cur_alpha;
+				if (alpha > 0.95f) break;
+			}
+
+			image[(img_width*j + i) * 3 + 0] = color[0];
+			image[(img_width*j + i) * 3 + 1] = color[1];
+			image[(img_width*j + i) * 3 + 2] = color[2];
+		}
+	}
+
+	return true;
+}
+
+
+bool Renderer::RenderVRYDirection(unsigned char* image,
+	const int img_width, const int img_height)
+{
+	if (m_CurMode != VR) return false;
+
+	int vol_width = m_pVolume->GetWidth();
+	int vol_height = m_pVolume->GetHeight();
+	int vol_depth = m_pVolume->GetDepth();
+
+	for (int j = 0; j < vol_depth; j++)
+	{
+		for (int i = 0; i < vol_width; i++)
+		{
+			float color[3] = { 0.f };
+			float alpha = 0.f;
+
+			for (int k = 0; k < vol_height; k++)
+			{
+				int cur_intensity = m_pVolume->GetVoxel(i, k, j);
+				float cur_blue = m_pTF->GetPalleteCValue(0, cur_intensity);
+				float cur_green = m_pTF->GetPalleteCValue(1, cur_intensity);
+				float cur_red = m_pTF->GetPalleteCValue(2, cur_intensity);
+				float cur_alpha = m_pTF->GetPalleteAValue(cur_intensity);
+
+				color[0] += (1.f - alpha) * cur_blue * cur_alpha;
+				color[1] += (1.f - alpha) * cur_green * cur_alpha;
+				color[2] += (1.f - alpha) * cur_red * cur_alpha;
+
+				alpha += (1.f - alpha) * cur_alpha;
+				if (alpha > 0.95f) break;
+			}
+
+			image[(img_width*j + i) * 3 + 0] = color[0];
+			image[(img_width*j + i) * 3 + 1] = color[1];
+			image[(img_width*j + i) * 3 + 2] = color[2];
+		}
+	}
+
+	return true;
+}
+
+
+bool Renderer::RenderVRZDirection(unsigned char* image,
+	const int img_width, const int img_height)
+{
+	if (m_CurMode != VR) return false;
+
+	int vol_width = m_pVolume->GetWidth();
+	int vol_height = m_pVolume->GetHeight();
+	int vol_depth = m_pVolume->GetDepth();
+
+	for (int j = 0; j < vol_height; j++)
+	{
+		for (int i = 0; i < vol_width; i++)
+		{
+			float color[3] = { 0.f };
+			float alpha = 0.f;
+
+			for (int k = 0; k < vol_depth; k++)
+			{
+				int cur_intensity = m_pVolume->GetVoxel(i, j, k);
+				float cur_blue = m_pTF->GetPalleteCValue(0, cur_intensity);
+				float cur_green = m_pTF->GetPalleteCValue(1, cur_intensity);
+				float cur_red = m_pTF->GetPalleteCValue(2, cur_intensity);
+				float cur_alpha = m_pTF->GetPalleteAValue(cur_intensity);
+
+				color[0] += (1.f - alpha) * cur_blue * cur_alpha;
+				color[1] += (1.f - alpha) * cur_green * cur_alpha;
+				color[2] += (1.f - alpha) * cur_red * cur_alpha;
+
+				alpha += (1.f - alpha) * cur_alpha;
+				if (alpha > 0.95f) break;
+			}
+
+			image[(img_width*j + i) * 3 + 0] = color[0];
+			image[(img_width*j + i) * 3 + 1] = color[1];
+			image[(img_width*j + i) * 3 + 2] = color[2];
+		}
+	}
+
+	return true;
+}
+
+
+bool Renderer::RenderVRAnyDirection(unsigned char* image,
+	const int img_width, const int img_height, int DirKey)
+{
+	if (m_CurMode != VR) return false;
+
+	int vol_width = m_pVolume->GetWidth();
+	int vol_height = m_pVolume->GetHeight();
+	int vol_depth = m_pVolume->GetDepth();
+
+	/// ¾÷¹éÅÍ, º¼·ý ¼¾ÅÍ ¼³Á¤
+	float3 up_vector = float3( 0.f, 0.f, -1.f );
+	float3 center_coord = float3(vol_width / 2.f, vol_height / 2.f, vol_depth / 2.f);
+
+	/// ´« ÁÂÇ¥ È¸Àü
+
+	float angle = 0.f;
+
+	switch (DirKey)
+	{
+	case LEFT:
+		angle = +10.f;
+		break;
+	case RIGHT:
+		angle = -10.f;
+		break;
+	default:
+		break;
+	}
+	
+	angle = angle * 3.141592f / 180.f;
+	float cos_ = cosf(angle);
+	float sin_ = sinf(angle);
+
+	float rotate_matrix[3][3] = {
+		{cos_, (-1)*sin_, 0.f},
+		{sin_,      cos_, 0.f},
+		{ 0.f,	     0.f, 1.f}
+	};
+
+	float rotate_eye[3] = { m_eye_coord.x, m_eye_coord.y, m_eye_coord.z };
+	rotate_eye[0] -= center_coord.x;
+	rotate_eye[1] -= center_coord.y;
+	rotate_eye[2] -= center_coord.z;
+	float res_arr[3] = { 0.f };
+	for (int i = 0; i < 3; i++)
+	{
+		float res = 0.f;
+		for (int j = 0; j < 3; j++)
+			res = res + rotate_eye[j] * rotate_matrix[i][j];
+
+		res_arr[i] = res;
+	}
+
+	res_arr[0] += center_coord.x;
+	res_arr[1] += center_coord.y;
+	res_arr[2] += center_coord.z;
+
+	m_eye_coord.x = res_arr[0];
+	m_eye_coord.y = res_arr[1];
+	m_eye_coord.z = res_arr[2];
+
+	/// ºäº¤ÅÍ °è»ê
+	float3 view_vector = center_coord - m_eye_coord;
+	view_vector.normalize();
+
+	/// xº¤ÅÍ °è»ê
+	float3 x_vector = cross(view_vector, up_vector);
+	x_vector.normalize();
+
+	/// yº¤ÅÍ °è»ê
+	float3 y_vector = cross(x_vector, view_vector);
+	y_vector.normalize();
+
+	for (int j = 0; j < img_height; j++)
+	{
+		for (int i = 0; i < img_width; i++)
+		{
+			/// ½ÃÀÛ ÁÂÇ¥ °è»ê
+			float3 cur_coord = m_eye_coord
+				+ x_vector * (i - img_width / 2) + y_vector * (j - img_height / 2);
+			
+		}
+	}
 }
