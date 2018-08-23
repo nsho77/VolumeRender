@@ -2,7 +2,7 @@
 #include "Volume.h"
 #include <math.h>
 #include "GlobalDefine.h"
-#include "TransferFuncion.h"
+#include "TransferFunction.h"
 
 struct float3
 {
@@ -70,10 +70,10 @@ enum {
 class Renderer
 {
 private:
-	shared_ptr<Volume>			m_pVolume;
-	shared_ptr<TransferFuncion> m_pTF;
-	float3						m_eye_coord;
-	int							m_CurMode;
+	shared_ptr<Volume>				m_pVolume;
+	shared_ptr<TransferFunction>	m_pTF;
+	float3							m_eye_coord;
+	int								m_CurMode;
 
 public:
 	Renderer();

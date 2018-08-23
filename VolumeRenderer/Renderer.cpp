@@ -6,7 +6,7 @@ Renderer::Renderer()
 {
 	m_pVolume = nullptr;
 	m_pTF = nullptr;
-	m_eye_coord = { 255.f, 225.f / 2.f, 224.f / 2.f };
+	m_eye_coord = float3{ 255.f / 2.f, 225.f, 224.f / 2.f };
 	m_CurMode = -1;
 }
 
@@ -19,10 +19,10 @@ Renderer::Renderer(unsigned char* volume, int width, int height, int depth)
 	int end_color[3] = { 120, 120, 120};
 	int alpha[2] = { 100, 120 };
 
-	m_pTF = shared_ptr<TransferFuncion>(
-		new TransferFuncion(start_color, end_color,alpha[0], alpha[1]));
+	m_pTF = shared_ptr<TransferFunction>(
+		new TransferFunction(start_color, end_color,alpha[0], alpha[1]));
 
-	m_eye_coord = { 255.f, 225.f / 2.f, 224.f / 2.f };
+	m_eye_coord = float3(width / 2.f, 0.f, depth / 2.f);
 	m_CurMode = -1;
 }
 
@@ -557,7 +557,7 @@ bool Renderer::RenderVRAnyDirection(unsigned char* image,
 	x_vector.normalize();
 
 	/// y∫§≈Õ ∞ËªÍ
-	float3 y_vector = cross(x_vector, view_vector);
+	float3 y_vector = cross(view_vector, x_vector);
 	y_vector.normalize();
 
 	for (int j = 0; j < img_height; j++)
@@ -568,6 +568,38 @@ bool Renderer::RenderVRAnyDirection(unsigned char* image,
 			float3 cur_coord = m_eye_coord
 				+ x_vector * (i - img_width / 2) + y_vector * (j - img_height / 2);
 			
+			float t[2] = { 0.f };
+			GetRayBound(t, cur_coord, view_vector);
+
+			float color[3] = { 0.f };
+			float alpha = 0.f;
+
+			for (float k = t[0]; k < t[1]; k+=1.f)
+			{
+				float3 adv_coord = cur_coord + view_vector * k;
+				if (adv_coord.x >= 1.f && adv_coord.x < vol_width-1  &&
+					adv_coord.y >= 1.f && adv_coord.y < vol_height-1 &&
+					adv_coord.z >= 1.f && adv_coord.z < vol_depth-1)
+				{
+					/// intensity ∏¶ ∞°¡Æø»
+					float intensity = m_pVolume->GetVoxel(adv_coord.x, adv_coord.y, adv_coord.z);
+					float cur_blue = m_pTF->GetPalleteCValue(0, intensity);
+					float cur_green = m_pTF->GetPalleteCValue(1, intensity);
+					float cur_red = m_pTF->GetPalleteCValue(2, intensity);
+					float cur_alpha = m_pTF->GetPalleteAValue(intensity);
+
+					color[0] += (1.f - alpha)*cur_blue*cur_alpha;
+					color[1] += (1.f - alpha)*cur_green*cur_alpha;
+					color[2] += (1.f - alpha)*cur_red*cur_alpha;
+					alpha += (1.f - alpha)*cur_alpha;
+
+					if (alpha > 0.95f) break;
+				}
+			}
+			image[(img_width*j + i) * 3 + 0] = color[0];
+			image[(img_width*j + i) * 3 + 1] = color[1];
+			image[(img_width*j + i) * 3 + 2] = color[2];
 		}
 	}
+	return true;
 }
