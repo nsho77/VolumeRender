@@ -59,7 +59,12 @@ void TransferFunction::SetColorPallete(int start_color[3], int end_color[3])
 			for (int k = 0; k < MAX_INTENSITY; k++)
 			{
 				float diff = fabs(static_cast<float>(j - k));
-				if (diff == 0.f) continue;
+				if (diff == 0.f) 
+				{
+					m_PalleteC2D[i].get()[MAX_INTENSITY*k + j] =
+						m_PalleteC[i].get()[k];
+					continue;
+				}
 
 				float sum = 0.f;
 				if (j < k)
@@ -72,7 +77,7 @@ void TransferFunction::SetColorPallete(int start_color[3], int end_color[3])
 					for (int q = k; q <= j; q++)
 						sum += m_PalleteC[i].get()[q];
 				}
-				float avg = sum / diff;
+				float avg = sum / (diff+1.f);
 
 				m_PalleteC2D[i].get()[MAX_INTENSITY*k + j] = avg;
 
@@ -115,7 +120,12 @@ void TransferFunction::SetAlphaPallete(int start_alpha, int end_alpha)
 		{
 			float diff = fabs(static_cast<float>(j - i));
 			if (diff == 0)
+			{
+				m_PalleteA2D.get()[MAX_INTENSITY*j + i]
+					= m_PalleteA.get()[i];
 				continue;
+			}
+				
 
 			float sum = 0.f;
 			if (i < j)
@@ -128,7 +138,7 @@ void TransferFunction::SetAlphaPallete(int start_alpha, int end_alpha)
 				for (int k = j; k <= i; k++)
 					sum += m_PalleteA.get()[k];
 			}
-			float avg = sum / diff;
+			float avg = sum / (diff+1.f);
 			
 			m_PalleteA2D.get()[MAX_INTENSITY*j + i] = avg;
 		}
@@ -186,6 +196,55 @@ float TransferFunction::GetPalleteCValue(int color, float intensity)
 
 
 
+float TransferFunction::GetPalleteC2DValue(int color,
+	float prev_intensity, float intensity)
+{
+	if (prev_intensity + 1.f >= MAX_INTENSITY)
+		return -1.f;
+	if (intensity + 1.f >= MAX_INTENSITY)
+		return -1.f;
+
+
+	switch (color)
+	{
+	case 0:
+		return GetPalleteSingleCValue2D(0, prev_intensity, intensity);
+		break;
+	case 1:
+		return GetPalleteSingleCValue2D(1, prev_intensity, intensity);
+		break;
+	case 2:
+		return GetPalleteSingleCValue2D(2, prev_intensity, intensity);
+		break;
+	default: /// color 값이 잘못 들어옴... -1 return
+		return  -1.f;
+		break;
+	}
+}
+
+
+float TransferFunction::GetPalleteSingleCValue2D(int color,
+	float prev_intensity, float intensity)
+{
+	int minus[2] = { prev_intensity, intensity };
+	int plus[2] = { prev_intensity + 1, intensity + 1 };
+	float weight[2] = { prev_intensity - static_cast<float>(minus[0]),
+		intensity - static_cast<float>(minus[1]) };
+
+	float coord_00 = m_PalleteC2D[color].get()[MAX_INTENSITY*minus[0] + minus[1]];
+	float coord_10 = m_PalleteC2D[color].get()[MAX_INTENSITY*minus[0] + plus[1]];
+	float coord_01 = m_PalleteC2D[color].get()[MAX_INTENSITY*plus[0] + minus[1]];
+	float coord_11 = m_PalleteC2D[color].get()[MAX_INTENSITY*plus[0] + plus[1]];
+
+	float inter00_10 = (1.f - weight[1])*coord_00 + weight[1] * coord_10;
+	float inter01_11 = (1.f - weight[1])*coord_01 + weight[1] * coord_11;
+
+	return (1.f - weight[0])*inter00_10 + weight[0] * inter01_11;
+}
+
+
+
+
 float TransferFunction::GetPalleteSingleCValue(int color, float intensity)
 {
 	int minus = intensity;
@@ -223,4 +282,30 @@ float TransferFunction::GetPalleteAValue(float intensity)
 	float plus_value = m_PalleteA.get()[plus];
 
 	return (1.f - weight) * minus_value + weight * plus_value;
+}
+
+
+
+float TransferFunction::GetPalleteA2DValue(float prev_intensity, float intensity)
+{
+	if (prev_intensity + 1.f >= MAX_INTENSITY)
+		return -1.f;
+	if (intensity + 1.f >= MAX_INTENSITY)
+		return -1.f;
+
+	int minus[2] = { prev_intensity, intensity };
+	int plus[2] = { prev_intensity + 1, intensity + 1 };
+	float weight[2] = { prev_intensity - static_cast<float>(minus[0]),
+		intensity - static_cast<float>(minus[1])};
+
+	float coord_00 = m_PalleteA2D.get()[MAX_INTENSITY*minus[0] + minus[1]];
+	float coord_10 = m_PalleteA2D.get()[MAX_INTENSITY*minus[0] + plus[1]];
+	float coord_01 = m_PalleteA2D.get()[MAX_INTENSITY*plus[0] + minus[0]];
+	float coord_11 = m_PalleteA2D.get()[MAX_INTENSITY*plus[0] + plus[1]];
+
+
+	float inter[2] = { (1.f - weight[1])*coord_00 + weight[1] * coord_10,
+		(1.f - weight[1])*coord_01 + weight[1] * coord_11 };
+
+	return (1.f - weight[0])*inter[0] + weight[0] * inter[0];
 }

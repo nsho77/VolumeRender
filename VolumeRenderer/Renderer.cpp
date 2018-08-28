@@ -101,6 +101,109 @@ bool Renderer::RenderSliceZDirection(unsigned char* image,
 }
 
 
+bool Renderer::RenderSliceAnyDirection(unsigned char* image,
+	const int img_width, const int img_height,
+	const int depth, int DirKey)
+{
+	if (m_CurMode != SLICE) return false;
+
+	int vol_width = m_pVolume->GetWidth();
+	int vol_height = m_pVolume->GetHeight();
+	int vol_depth = m_pVolume->GetDepth();
+
+	/// up_vector, view_vector ¼³Á¤
+	float3 up_vector = float3(0.f, 0.f, -1.f);
+	float3 center_coord = float3(static_cast<float>(vol_width) / 2.f,
+		static_cast<float>(vol_height) / 2.f, static_cast<float>(vol_depth) / 2.f);
+
+	/// ´« ÁÂÇ¥ rotate
+	float angle = 0.f;
+	switch (DirKey)
+	{
+	case LEFT:
+		angle = -10.f;
+		break;
+	case RIGHT:
+		angle = +10.f;
+		break;
+	default:
+		break;
+	}
+
+	/// È¸ÀüÇà·Ä set
+	angle = angle * 3.141592f / 180.f;
+	float cos_ = cosf(angle);
+	float sin_ = sinf(angle);
+	float rotate_matrix[3][3] = {
+		{ cos_, (-1)*sin_, 0.f },
+		{ sin_,     cos_ , 0.f },
+		{ 0.f,        0.f, 1.f }
+	};
+
+	float3 t_EyeCoord_float3 = m_eye_coord - center_coord;
+	float t_EyeCoord_float[3] = { t_EyeCoord_float3.x, 
+		t_EyeCoord_float3.y,t_EyeCoord_float3.z };
+	float t_RotateEyeCoord[3] = { 0.f };
+
+	for (int j = 0; j < 3; j++)
+	{
+		for (int i = 0; i < 3; i++)
+			t_RotateEyeCoord[j] += rotate_matrix[j][i] * t_EyeCoord_float[i];
+	}
+
+	m_eye_coord.x = t_RotateEyeCoord[0] + center_coord.x;
+	m_eye_coord.y = t_RotateEyeCoord[1] + center_coord.y;
+	m_eye_coord.z = t_RotateEyeCoord[2] + center_coord.z;
+
+	/// ºäº¤ÅÍ
+	float3 view_vector = center_coord - m_eye_coord;
+	view_vector.normalize();
+	
+	/// X º¤ÅÍ
+	float3 x_vector = cross(view_vector, up_vector);
+	x_vector.normalize();
+
+	/// Y º¤ÅÍ
+	float3 y_vector = cross(view_vector, x_vector);
+	y_vector.normalize();
+
+	/// GetRayBound
+	for (int j = 0; j < img_height; j++)
+	{
+		for (int i = 0; i < img_width; i++)
+		{
+			float3 cur_coord = m_eye_coord + x_vector * (i - img_width / 2) +
+				y_vector * (j - img_height / 2);
+
+			float t[2] = { 0.f };
+			GetRayBound(t, cur_coord, view_vector);
+			float t_depth = 0.f;
+
+			for (float k = t[0]; k < t[1]; k += 1.f)
+			{
+				float3 adv_coord = cur_coord + view_vector * k;
+				if (adv_coord.x >= 0.f && adv_coord.x < vol_width - 1 &&
+					adv_coord.y >= 0.f && adv_coord.y < vol_height - 1 &&
+					adv_coord.z >= 0.f && adv_coord.z < vol_depth - 1)
+				{
+					t_depth += 1.f;
+					if (t_depth < static_cast<float>(depth)) continue;
+					float voxel = m_pVolume->GetVoxel(adv_coord.x,
+						adv_coord.y, adv_coord.z);
+
+					image[img_width*j + i] = static_cast<unsigned char>(voxel);
+					break;
+				}
+			}
+		}
+	}
+
+	return true;
+	
+}
+
+
+
 bool Renderer::RenderMIPXDirection(unsigned char* image,
 	const int img_width, const int img_height)
 {
@@ -560,6 +663,10 @@ bool Renderer::RenderVRAnyDirection(unsigned char* image,
 	float3 y_vector = cross(view_vector, x_vector);
 	y_vector.normalize();
 
+	/// ±¤¿ø
+	float3 LIGHT = view_vector;
+	bool bShading = false;
+
 	for (int j = 0; j < img_height; j++)
 	{
 		for (int i = 0; i < img_width; i++)
@@ -577,16 +684,45 @@ bool Renderer::RenderVRAnyDirection(unsigned char* image,
 			for (float k = t[0]; k < t[1]; k+=1.f)
 			{
 				float3 adv_coord = cur_coord + view_vector * k;
-				if (adv_coord.x >= 1.f && adv_coord.x < vol_width-1  &&
-					adv_coord.y >= 1.f && adv_coord.y < vol_height-1 &&
-					adv_coord.z >= 1.f && adv_coord.z < vol_depth-1)
+				if (adv_coord.x >= 1.f && adv_coord.x < vol_width-2  &&
+					adv_coord.y >= 1.f && adv_coord.y < vol_height-2 &&
+					adv_coord.z >= 1.f && adv_coord.z < vol_depth-2)
 				{
+					///prev_intensity ¸¦ °¡Á®¿È
+					float prev_intensity =
+						m_pVolume->GetVoxel(adv_coord.x - view_vector.x,
+							adv_coord.y - view_vector.y,
+							adv_coord.z - view_vector.z);
+
 					/// intensity ¸¦ °¡Á®¿È
 					float intensity = m_pVolume->GetVoxel(adv_coord.x, adv_coord.y, adv_coord.z);
-					float cur_blue = m_pTF->GetPalleteCValue(0, intensity);
-					float cur_green = m_pTF->GetPalleteCValue(1, intensity);
-					float cur_red = m_pTF->GetPalleteCValue(2, intensity);
-					float cur_alpha = m_pTF->GetPalleteAValue(intensity);
+					float cur_blue = m_pTF->GetPalleteC2DValue(0, prev_intensity, intensity);
+					float cur_green = m_pTF->GetPalleteC2DValue(1, prev_intensity, intensity);
+					float cur_red = m_pTF->GetPalleteC2DValue(2, prev_intensity, intensity);
+					float cur_alpha = m_pTF->GetPalleteA2DValue(prev_intensity, intensity);
+
+					if (bShading)
+					{
+						float x_plus = m_pVolume->GetVoxel(adv_coord.x + 1.f, adv_coord.y, adv_coord.z);
+						float y_plus = m_pVolume->GetVoxel(adv_coord.x, adv_coord.y + 1.f, adv_coord.z);
+						float z_plus = m_pVolume->GetVoxel(adv_coord.x, adv_coord.y, adv_coord.z + 1.f);
+
+						float x_minus = m_pVolume->GetVoxel(adv_coord.x - 1.f, adv_coord.y, adv_coord.z);
+						float y_minus = m_pVolume->GetVoxel(adv_coord.x, adv_coord.y - 1.f, adv_coord.z);
+						float z_minus = m_pVolume->GetVoxel(adv_coord.x, adv_coord.y, adv_coord.z - 1.f);
+
+						float3 NORMAL = float3((x_plus - x_minus)*0.5f, (y_plus - y_minus)*0.5f, (z_plus - z_minus)*0.5f);
+						NORMAL.normalize();
+
+						float NL = NORMAL.x*LIGHT.x + NORMAL.y*LIGHT.y + NORMAL.z*LIGHT.z;
+						if (NL < 0.f) NL = 0.f;
+
+						float shading = 0.3f + 0.7f*NL;
+						cur_blue *= shading;
+						cur_green *= shading;
+						cur_red *= shading;
+						cur_alpha *= shading;
+					}
 
 					color[0] += (1.f - alpha)*cur_blue*cur_alpha;
 					color[1] += (1.f - alpha)*cur_green*cur_alpha;

@@ -93,6 +93,9 @@ public:
 	bool RenderSliceZDirection(unsigned char* image,
 		const int img_width, const int img_height,
 		const int depth);
+	bool RenderSliceAnyDirection(unsigned char* image,
+		const int img_width, const int img_height,
+		const int depth, int DirKey);
 
 	bool RenderMIPXDirection(unsigned char* image,
 		const int img_width, const int img_height);
